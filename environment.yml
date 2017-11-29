@@ -1,0 +1,13 @@
+channels:
+- conda-forge
+- defaults
+dependencies:
+- beautifulsoup4=4.6.0
+- bleach=2.0.0
+- certifi=2017.7.27.1
+- jinja2=2.9.5
+- requests=2.18.4
+- urlobject=2.4.3
+#- python=2.7.12=1
+- pip:
+  - requests-cache==0.4.13
