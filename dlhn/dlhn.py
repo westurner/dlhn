@@ -16,6 +16,7 @@ import datetime
 import json
 import logging
 import os
+import time
 
 try:
     from HTMLParser import HTMLParser
@@ -26,7 +27,6 @@ import bleach
 import bs4
 # pip install --user certifi
 import jinja2
-import requests
 import requests_cache
 
 log = logging.getLogger()
@@ -34,7 +34,74 @@ log = logging.getLogger()
 chardetlog = logging.getLogger('chardet.charsetprober')
 chardetlog.setLevel(logging.ERROR)
 
-requests_cache.install_cache('dlhn')
+
+def make_throttle_hook(timeout=1.0):
+    """
+    Returns a response hook function which sleeps for `timeout` seconds if
+    response is not cached
+    """
+    def hook(response, *args, **kwargs):
+        if not getattr(response, 'from_cache', False):
+            log.debug('sleeping')
+            time.sleep(timeout)
+        return response
+    return hook
+
+
+def remove_new_entries(self, created_after):
+    """ Deletes entries from cache with creation time newer than ``created_after``
+    """
+    keys_to_delete = set()
+    for key in self.responses:
+        try:
+            response, created_at = self.responses[key]
+        except KeyError:
+            continue
+        if created_at > created_after:
+            keys_to_delete.add(key)
+
+    for key in keys_to_delete:
+        self.delete(key)
+
+
+REQUESTS = None
+
+
+def build_requests_session(expire_after=None,
+                           expire_newerthan=None,
+                           always_set=False):
+    """
+    Build a requests session
+
+    Kwargs:
+        expire_after (datetime.timedelta): expire cache entries older than this
+        expire_newerthan (datetime.timedelta): expire cache entries newer than
+            this
+        always_set (bool): if True, always set the REQUESTS global;
+            otherwise don't modify the REQUESTS global
+    """
+    global REQUESTS
+    if REQUESTS is None or always_set:
+        # requests_cache.install_cache('dlhn', expire_after=expire_after)
+        REQUESTS = requests_cache.CachedSession(
+            cache_name='dlhn',
+            expire_after=expire_after)
+        REQUESTS.hooks = {'response': make_throttle_hook(0.5)}
+        if expire_after is not None:
+            log.info("Removing cache entries older than %r",
+                     expire_after)
+            REQUESTS.cache.remove_old_entries(
+                datetime.datetime.utcnow() - expire_after)
+        if expire_newerthan is not None:
+            log.info("Removing cache entries newer than %r",
+                     expire_newerthan)
+            remove_new_entries(REQUESTS.cache,
+                datetime.datetime.utcnow() - expire_newerthan)
+    else:
+        log.error('The REQUESTS global is already set.')
+
+
+build_requests_session()
 
 
 def dlhn(username, output='index.html'):
@@ -119,7 +186,6 @@ def get_items(username):
             else:
                 queue.appendleft((parent, 'parent'))
             items[objkey] = objjson
-        #time.sleep(0.4)
     items_sorted = collections.OrderedDict((
         (key, items.get(key)) for key in sorted(items)
     ))
@@ -327,6 +393,15 @@ def main(argv=None):
                    action='store',
                    default='index.html')
 
+    prs.add_option('--expire-after',
+                   dest='expire_after',
+                   action='store',
+                   default=None)
+    prs.add_option('--expire-newerthan',
+                   dest='expire_newerthan',
+                   action='store',
+                   default=None)
+
     prs.add_option('-v', '--verbose',
                    dest='verbose',
                    action='store_true',)
@@ -352,6 +427,27 @@ def main(argv=None):
     if opts.run_tests:
         sys.argv = [sys.argv[0]] + args
         return unittest.main()
+
+    def parse_timedeltastr(str_, default_days=14):
+        if str_ is None:
+            delta = None
+        elif str_ == -1:
+            delta = datetime.timedelta(days=default_days)
+        elif str_.endswith('d'):
+            delta = datetime.timedelta(days=int(str_[:-1]))
+        elif str_.endswith('h'):
+            delta = datetime.timedelta(hours=int(str_[:-1]))
+        elif str_.endswith('m'):
+            delta = datetime.timedelta(minutes=int(str_[:-1]))
+        else:
+            delta = datetime.timedelta(days=int(str_))
+        return delta
+
+    expire_after = parse_timedeltastr(opts.expire_after)
+    expire_newerthan = parse_timedeltastr(opts.expire_newerthan)
+    build_requests_session(expire_after=expire_after,
+                           expire_newerthan=expire_newerthan,
+                           always_set=True)
 
     EX_OK = 0
     output = dlhn(opts.username, output=opts.output)
