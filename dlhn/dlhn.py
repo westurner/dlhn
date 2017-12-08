@@ -83,7 +83,9 @@ def cleanup_html(html):
 
 
 def get_items(username):
-    url = 'https://hacker-news.firebaseio.com/v0/user/{}.json'.format(username)
+    url = (
+        'https://hacker-news.firebaseio.com/v0/user/{}.json?nonce={}'
+        .format(username, datetime.datetime.now().isoformat()))
     resp = requests.get(url)
     json = resp.json()
     items = collections.OrderedDict()
