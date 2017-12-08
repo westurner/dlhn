@@ -52,14 +52,16 @@ def dlhn(username, output='index.html'):
     Raises:
         Exception: ...
     """
-    username = 'westurner'
+    output_json = '%s.json' % output
+    log.info(
+        "Pulling hacker news for user %r into %r and %r",
+        username, output, output_json)
     items, roots = get_items(username)
     data = collections.OrderedDict()
     data['usernames'] = collections.OrderedDict.fromkeys([username])
     data['items'] = items
     data['roots'] = roots
     html = TEMPLATE.render(**data)
-    output_json = '%s.json' % output
     with codecs.open(output_json, 'w', encoding='utf8') as _file:
         json.dump(data, _file, indent=2)
     with codecs.open(output, 'w', encoding='utf8') as _file:
