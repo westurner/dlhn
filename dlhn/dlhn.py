@@ -190,7 +190,7 @@ def get_items(username):
     items_sorted = collections.OrderedDict((
         (key, items.get(key)) for key in sorted(items)
     ))
-    return items_sorted, roots[::-1]
+    return items_sorted, roots
 
 
 TEMPLATE = jinja2.Template("""
