@@ -2,23 +2,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 """
-phnc -- pull hacker news comments, submissions, and favorites
+dlhn -- download hacker news comments, submissions
 
 TODO:
 
-- expand all / collapse all
-- favorites
-- Generate a project skeleton w/ cookiecutter
-- Choose a better name than phnc
-  - phnc
-  - https://westurner.github.io/hackernewslog
-  - https://westurner.github.io/hnlog
-  - https://westurner.github.io/ynewslog
+- TODO: expand all / collapse all
+- TODO: favorites
+- TODO: Generate a project skeleton and setup.py w/ cookiecutter
 """
 import codecs
 import collections
 import datetime
+import json
 import logging
+import os
 import time
 
 try:
@@ -39,10 +36,10 @@ log = logging.getLogger()
 chardetlog = logging.getLogger('chardet.charsetprober')
 chardetlog.setLevel(logging.ERROR)
 
-requests_cache.install_cache('phnc')
+requests_cache.install_cache('dlhn')
 
 
-def phnc(username, output=None):
+def dlhn(username, output='index.html'):
     """pull hacker news comments
 
     Arguments:
@@ -59,11 +56,15 @@ def phnc(username, output=None):
     """
     username = 'westurner'
     items, roots = get_items(username)
-    html = TEMPLATE.render(
-        items=items,
-        roots=roots,
-        usernames=dict.fromkeys([username]))
-    with codecs.open('test.html', 'w', encoding='utf8') as _file:
+    data = collections.OrderedDict()
+    data['usernames'] = collections.OrderedDict.fromkeys([username])
+    data['items'] = items
+    data['roots'] = roots
+    html = TEMPLATE.render(**data)
+    output_json = '%s.json' % output
+    with codecs.open(output_json, 'w', encoding='utf8') as _file:
+        json.dump(data, _file, indent=2)
+    with codecs.open(output, 'w', encoding='utf8') as _file:
         _file.write(html)
     return html
 
@@ -289,40 +290,28 @@ TEMPLATE = jinja2.Template("""
 import unittest
 
 
-class Test_phnc(unittest.TestCase):
+class Test_dlhn(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
-    # def test_phnc(self):
-    #     output = phnc('westurner', output='testoutput.html')
-    #     assert bool(output)
-
-    def test_it(self):
-
-        output = phnc('westurner', output='test.html')
+    def test_dlhn(self):
+        destfile = os.path.join('.', 'test.html')
+        output = dlhn('westurner', output=destfile)
         assert output
-        with codecs.open('test.html','r', encoding='utf8') as file_:
+        with codecs.open(destfile, 'r', encoding='utf8') as file_:
             print(bs4.BeautifulSoup(file_).find('main').prettify())
 
         import subprocess
-        subprocess.check_call("web './test.html'", shell=True)
-
-
-    def tearDown(self):
-        pass
+        subprocess.check_call(("python", "-m", "webbrowser", destfile))
 
 
 def main(argv=None):
     """
-    Main function
+    dlhn Main function
 
     Keyword Arguments:
         argv (list): commandline arguments (e.g. sys.argv[1:])
     Returns:
-        int:
+        int: 0 if OK
     """
-    import logging
     import optparse
 
     prs = optparse.OptionParser(usage="%prog [-v/-q/-t] <username>")
@@ -334,17 +323,17 @@ def main(argv=None):
     prs.add_option('-o', '--output',
                    dest='output',
                    action='store',
-                   default='comments.html')
+                   default='index.html')
 
     prs.add_option('-v', '--verbose',
-                    dest='verbose',
-                    action='store_true',)
+                   dest='verbose',
+                   action='store_true',)
     prs.add_option('-q', '--quiet',
-                    dest='quiet',
-                    action='store_true',)
+                   dest='quiet',
+                   action='store_true',)
     prs.add_option('-t', '--test',
-                    dest='run_tests',
-                    action='store_true',)
+                   dest='run_tests',
+                   action='store_true',)
 
     argv = list(argv) if argv else []
     log.debug('argv: %r', argv)
@@ -359,13 +348,11 @@ def main(argv=None):
     log.debug('args: %r', args)
 
     if opts.run_tests:
-        import sys
         sys.argv = [sys.argv[0]] + args
-        import unittest
         return unittest.main()
 
     EX_OK = 0
-    output = phnc(opts.username, output=opts.output)
+    output = dlhn(opts.username, output=opts.output)
     return EX_OK
 
 
