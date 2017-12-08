@@ -16,7 +16,6 @@ import datetime
 import json
 import logging
 import os
-import time
 
 try:
     from HTMLParser import HTMLParser
@@ -29,7 +28,6 @@ import bs4
 import jinja2
 import requests
 import requests_cache
-import urlobject
 
 log = logging.getLogger()
 
