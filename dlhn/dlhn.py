@@ -249,6 +249,17 @@ TEMPLATE = jinja2.Template("""
           margin-top: 6px;
           margin-bottom: -6px;
       }
+
+      @media (max-width: 767px) {
+          a.collapser {
+              float: none;
+              display: block;
+          }
+          .card {
+              margin: 4px 0;
+              padding: 0 4px;
+          }
+      }
   </style>
   <script>
       function toggleDownward(elem) {
@@ -292,6 +303,7 @@ TEMPLATE = jinja2.Template("""
             <th scope="col">date</th>
             <th scope="col">title</th>
             <th scope="col">user</th>
+            <th scope="col">score</th>
         </tr>
     </thead>
     <tbody>
@@ -299,11 +311,11 @@ TEMPLATE = jinja2.Template("""
     {% set item=items.get(itemid) -%}
     {% set itemcssid="{}-{}".format(item.type, item.id) -%}
     {% set fromme=(item.by in usernames) -%}
-    <tr scope="row">
+    <tr scope="row" {% if fromme %} class="bold"{% endif %}>
         <td>{{ item.time_iso }}</td>
-        <td><a href="#{{itemcssid}}">{{ item.title }}</a><td>
-        <td><span{% if fromme %} class="bold"{% endif %}>
-            <a href="https://news.ycombinator.com/user?id={{item.by}}">{{ item.by }}</a></span></td>
+        <td><a href="#{{itemcssid}}">{{ item.title }}</a></td>
+        <td><a href="https://news.ycombinator.com/user?id={{item.by}}">{{ item.by }}</a></td>
+        <td>{{ item.score }}</td>
     </tr>
     {% endfor %}
     </tbody>
@@ -329,14 +341,15 @@ TEMPLATE = jinja2.Template("""
           <a href="https://news.ycombinator.com/item?id={{ item.id }}"
           {% if not item.title %}id="{{ itemcssid }}"{% endif %}
           >{{ item.time_iso }}</a>
-          {%- if item.score %} | {{ item.score }} points {% endif -%} | <a href="#{{ itemcssid }}">#</a> | <a href="#" class="toplink">^</a>
+          {%- if item.score %} | {{ item.score }} {% endif %} | <a href="#{{ itemcssid }}">#</a> | <a href="#" class="toplink">^</a>
         </div>
+        {% if item.url -%}
         <div class="card-subtitle text-muted">
-            {% if item.url -%}<span><a href="{{ item.url }}" rel="nofollow">{{ item.url }}</a></span>{% endif -%}
+            <span><a href="{{ item.url }}" rel="nofollow">{{ item.url }}</a></span>
         </div>
+        {% endif -%}
         {%- if item.text %}
-          <p class="card-text">{% autoescape false %}{{ item.text }}{% endautoescape %}
-        </p>
+        <p class="card-text">{% autoescape false %}{{ item.text }}{% endautoescape %}</p>
         {%- endif -%}
         {%- if item.deleted %}<p class="card-text">[deleted]</p>{% endif -%}
         {%- if not fromme and item.parent %}</div>{% endif -%}
