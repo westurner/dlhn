@@ -155,29 +155,30 @@ def get_items(username):
     url = (
         'https://hacker-news.firebaseio.com/v0/user/{}.json?nonce={}'
         .format(username, datetime.datetime.now().isoformat()))
-    resp = requests.get(url)
-    json = resp.json()
+    log.info(('GET', url))
+    resp = REQUESTS.get(url)
+    json_ = resp.json()
     items = collections.OrderedDict()
     roots = []
     # stack-based ~depth-first search (visitor pattern)
-    queue = collections.deque(json.get('submitted'))
+    queue = collections.deque(json_.get('submitted'))
     while len(queue):
         objkey, objtype = queue.popleft(), None
         if isinstance(objkey, tuple):
             objkey, objtype = objkey
         if objkey in items:
             continue
-        url = 'https://hacker-news.firebaseio.com/v0/item/{}.json'.format(objkey)
-        print(('GET', url))
-        objresp = requests.get(url)
+        url = (
+            'https://hacker-news.firebaseio.com/v0/item/{}.json'
+            .format(objkey))
+        log.info(('GET', url))
+        objresp = REQUESTS.get(url)
         objjson = objresp.json()
-
         if objjson:
             if 'text' in objjson:
                 objjson['text'] = cleanup_html(objjson['text'])
-            if 'time' in objjson:
-                objjson[u'time_iso'] = datetime.datetime.fromtimestamp(
-                    objjson['time']).strftime("%F %T%Z")
+            objdate = datetime.datetime.fromtimestamp(objjson['time'])
+            objjson[u'time_iso'] = objdate.strftime("%F %T%Z")
             if objtype != 'parent':
                 queue.extendleft(objjson.get('kids', []))
             parent = objjson.get('parent')
