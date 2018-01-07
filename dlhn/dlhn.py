@@ -123,7 +123,18 @@ def dlhn(username, output='index.html'):
     log.info(
         "Pulling hacker news for user %r into %r and %r",
         username, output, output_json)
-    items, roots = get_items(username)
+
+    cache = None
+    if os.path.exists(output_json):
+        with codecs.open(output_json, 'r', encoding='utf8') as _file:
+            _data = json.load(
+                _file,
+                object_pairs_hook=collections.OrderedDict)
+            cache = _data.get('items')
+            log.info(u'Reading cache from %r (%d)' %
+                     (output_json, len(cache)))
+
+    items, roots = get_items(username, cache=cache)
     data = collections.OrderedDict()
     data['usernames'] = collections.OrderedDict.fromkeys([username])
     data['items'] = items
@@ -151,7 +162,7 @@ def cleanup_html(html):
         attributes=ALLOWED_ATTRIBUTES)
 
 
-def get_items(username):
+def get_items(username, cache=None):
     url = (
         'https://hacker-news.firebaseio.com/v0/user/{}.json?nonce={}'
         .format(username, datetime.datetime.now().isoformat()))
@@ -162,18 +173,32 @@ def get_items(username):
     roots = []
     # stack-based ~depth-first search (visitor pattern)
     queue = collections.deque(json_.get('submitted'))
+    daysago_14 = time.mktime(
+        (datetime.datetime.utcnow()-datetime.timedelta(14))
+        .timetuple())
     while len(queue):
         objkey, objtype = queue.popleft(), None
         if isinstance(objkey, tuple):
             objkey, objtype = objkey
         if objkey in items:
             continue
-        url = (
-            'https://hacker-news.firebaseio.com/v0/item/{}.json'
-            .format(objkey))
-        log.info(('GET', url))
-        objresp = REQUESTS.get(url)
-        objjson = objresp.json()
+
+        objjson = None
+        if cache is not None:
+            _obj = cache.get(str(objkey))
+            if _obj is not None:
+                if _obj['time'] > daysago_14:
+                    objjson = _obj
+                    log.info(('CACHE', objkey))
+
+        if objjson is None:
+            url = (
+                'https://hacker-news.firebaseio.com/v0/item/{}.json'
+                .format(objkey))
+            log.info(('GET', url))
+            objresp = REQUESTS.get(url)
+            objjson = objresp.json()
+
         if objjson:
             if 'text' in objjson:
                 objjson['text'] = cleanup_html(objjson['text'])
