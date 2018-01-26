@@ -187,7 +187,7 @@ def get_items(username, cache=None):
         if cache is not None:
             _obj = cache.get(str(objkey))
             if _obj is not None:
-                if _obj['time'] > daysago_14:
+                if _obj['time'] < daysago_14:
                     objjson = _obj
                     log.info(('CACHE', objkey))
 
