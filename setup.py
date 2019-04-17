@@ -56,7 +56,7 @@ setup(
     ],
     description=(
         'dlhn is a Python CLI script to download my comments'
-        ' and submissions from the Firebase HackerNews API'
+        ' and submissions from the Hacker News API'
         ' and generate a static HTML archive with a Jinja2 template'),
     install_requires=requirements,
     license="BSD license",
