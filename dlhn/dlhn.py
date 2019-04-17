@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 """
-dlhn -- download hacker news comments, submissions
+dlhn -- a Python CLI script to download hacker news comments and submissions
+and generate a static HTML archive with a template
 
 TODO:
 
