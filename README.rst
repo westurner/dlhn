@@ -20,12 +20,9 @@ dlhn
 
 
 
-dlhn is a a Python CLI script to download my comments and submissions
+dlhn is a Python CLI script to download my comments and submissions
 from the Firebase HackerNews API
 and generate a static HTML archive with a Jinja2 template
-
-
-* Free software: BSD license
 
 
 Features
@@ -38,6 +35,79 @@ Features
 * Aggressively cache entries that couldn't have changed
   with a two-layer caching system that includes requests_cache
   and a sqlite database
+
+Installation
+--------------
+
+Install dlhn with pip:
+
+.. code:: bash
+
+    pip install -e git+https://github.com/westurner/dlhn#egg=dlhn
+
+
+Usage
+------
+
+Call dlhn:
+
+.. code:: bash
+
+	dlhn -u dlhntestuser -o index.html --expire-newerthan 14d
+
+Optionally, create a repo for e.g. GitHub Pages and add a ``Makefile``:
+
+.. code:: makefile
+
+    # hnlog Makefile
+
+    USERNAME:=dlhntestuser
+
+    default: backup
+
+    install:
+        pip install -e git+https://github.com/westurner/dlhn#egg=dlhn
+
+    backup:
+        @# items with a cachetime newer than 14d ago may need to be pulled again
+        @# because they may not be locked yet (cachetime != item_time)
+        dlhn -u '$(USERNAME)' -o index.html --expire-newerthan 14d
+
+    backup-nocache:
+        dlhn -u '$(USERNAME)' -o index.html
+
+    commit:
+        git add ./index.html ./index.html.json ./dlhn.sqlite && \
+        git commit -m ":books: Updated index.html, index.html.json, and dlhn.sqlite"
+
+    push:
+        git push
+
+    all: backup commit push
+
+And pass USERNAME as an arg when calling ``make``:
+
+.. code:: bash
+
+    make all USERNAME=dlhntestuser
+
+References
+-----------
+
+- Hacker News Guidelines: https://news.ycombinator.com/newsguidelines.html
+- Hacker News API docs: https://github.com/HackerNews/API
+- `dlhntestuser <https://news.ycombinator.com/user?id=dlhntestuser>`__
+
+  - Submissions: https://news.ycombinator.com/submitted?id=dlhntestuser
+  - Comments: https://news.ycombinator.com/threads?id=dlhntestuser
+
+License
+--------
+BSD License
+
+dlhn archives pubicly available comments and submissions
+from the Hacker News API
+for noncommercial use to make searching one-page with 'Ctrl-F' easy.
 
 Credits
 -------
