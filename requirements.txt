@@ -4,4 +4,4 @@ certifi
 jinja2
 requests
 urlobject
-requests-cache=
+requests-cache
