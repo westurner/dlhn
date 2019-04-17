@@ -1,0 +1,7 @@
+beautifulsoup4
+bleach
+certifi
+jinja2
+requests
+urlobject
+requests-cache=
