@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 """
-dlhn -- a Python CLI script to download hacker news comments and submissions
-and generate a static HTML archive with a template
+dlhn -- a Python CLI script to download my comments and submissions
+from the Hacker News API
+and generate a static HTML archive with a Jinja2 template
 
 TODO:
 
 - TODO: expand all / collapse all
 - TODO: favorites
-- TODO: Generate a project skeleton and setup.py w/ cookiecutter
 """
 import codecs
 import collections

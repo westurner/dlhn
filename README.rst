@@ -21,14 +21,14 @@ dlhn
 
 
 dlhn is a Python CLI script to download my comments and submissions
-from the Firebase HackerNews API
+from the Hacker News API
 and generate a static HTML archive with a Jinja2 template
 
 
 Features
 --------
 
-* Download comments and submissions from the Firebase HackerNews API
+* Download comments and submissions from the Hacker News API
 * Archive comment trees and submissions as JSON
 * Archive comment trees and submissions as static HTML 
   with a Jinja2 HTML template
@@ -43,7 +43,9 @@ Install dlhn with pip:
 
 .. code:: bash
 
-    pip install -e git+https://github.com/westurner/dlhn#egg=dlhn
+    pip install dlhn
+
+    # pip install -e git+https://github.com/westurner/dlhn#egg=dlhn
 
 
 Usage
