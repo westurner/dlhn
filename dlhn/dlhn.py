@@ -17,12 +17,18 @@ import datetime
 import json
 import logging
 import os
+import sys
 import time
 
-try:
+if sys.version_info.major < 3:
     from HTMLParser import HTMLParser
-except ImportError:
-    from html.parser import HTMLParser
+    HTML_PARSER = HTMLParser()
+    unescape = HTML_PARSER.unescape
+else:
+    import html
+    unescape = html.unescape
+
+__version__ = __import__('dlhn').__version__
 
 import bleach
 import bs4
@@ -68,11 +74,15 @@ def remove_new_entries(self, created_after):
 REQUESTS = None
 
 
-def build_requests_session(expire_after=None,
+def build_requests_session(basedir,
+                           expire_after=None,
                            expire_newerthan=None,
                            always_set=False):
     """
     Build a requests session
+
+    Args:
+        basedir (str): directory to store dlhn.sqlite in
 
     Kwargs:
         expire_after (datetime.timedelta): expire cache entries older than this
@@ -85,7 +95,7 @@ def build_requests_session(expire_after=None,
     if REQUESTS is None or always_set:
         # requests_cache.install_cache('dlhn', expire_after=expire_after)
         REQUESTS = requests_cache.CachedSession(
-            cache_name='dlhn',
+            cache_name=os.path.join(basedir, 'dlhn'),
             expire_after=expire_after)
         REQUESTS.hooks = {'response': make_throttle_hook(0.5)}
         if expire_after is not None:
@@ -100,9 +110,6 @@ def build_requests_session(expire_after=None,
                 datetime.datetime.utcnow() - expire_newerthan)
     else:
         log.error('The REQUESTS global is already set.')
-
-
-build_requests_session()
 
 
 def dlhn(username, output='index.html'):
@@ -120,6 +127,8 @@ def dlhn(username, output='index.html'):
     Raises:
         Exception: ...
     """
+    build_requests_session(os.path.dirname(output))
+
     output_json = '%s.json' % output
     log.info(
         "Pulling hacker news for user %r into %r and %r",
@@ -137,7 +146,7 @@ def dlhn(username, output='index.html'):
 
     items, roots = get_items(username, cache=cache)
     data = collections.OrderedDict()
-    data['usernames'] = collections.OrderedDict.fromkeys([username])
+    data['usernames'] = [username]
     data['items'] = items
     data['roots'] = roots
     html = TEMPLATE.render(**data)
@@ -148,8 +157,6 @@ def dlhn(username, output='index.html'):
     return html
 
 
-HTML_PARSER = HTMLParser()
-
 ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS[:]
 ALLOWED_TAGS.extend(['p', 'pre'])
 ALLOWED_ATTRIBUTES = bleach.sanitizer.ALLOWED_ATTRIBUTES.copy()
@@ -158,7 +165,7 @@ ALLOWED_ATTRIBUTES['a'].append('rel')
 
 def cleanup_html(html):
     return bleach.clean(
-        HTML_PARSER.unescape(html),
+        unescape(html),
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES)
 
@@ -223,7 +230,7 @@ TEMPLATE = jinja2.Template("""
 <!doctype html>
 <html>
 <head>
-  <title>{{usernames.keys()}}'s comments</title>
+  <title>{{usernames}}'s comments</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <meta name="description" content="">
@@ -402,10 +409,11 @@ class Test_dlhn(unittest.TestCase):
 
     def test_dlhn(self):
         destfile = os.path.join('.', 'test.html')
-        output = dlhn('westurner', output=destfile)
+        output = dlhn('dlhntestuser', output=destfile)
         assert output
         with codecs.open(destfile, 'r', encoding='utf8') as file_:
-            print(bs4.BeautifulSoup(file_).find('main').prettify())
+            print(bs4.BeautifulSoup(file_, features='html.parser')
+                    .find('main').prettify())
 
         import subprocess
         subprocess.check_call(("python", "-m", "webbrowser", destfile))
@@ -422,26 +430,43 @@ def main(argv=None):
     """
     import optparse
 
-    prs = optparse.OptionParser(usage="%prog [-v/-q/-t] <username>")
+    prs = optparse.OptionParser(
+            usage="%prog [-h] [-v/-q/-t] -u <username> [-o <index.html>]",
+            version=__version__,
+            add_help_option=False,
+            description=(
+                'Download comments and submissions from the'
+                ' Firebase Hacker News API'
+                ' and generate a static HTML archive with a Jinja2 template'
+            ))
 
     prs.add_option('-u', '--username',
                    dest='username',
-                   action='store')
+                   action='store',
+                   help='HN username to retrieve comments and submissions of')
 
     prs.add_option('-o', '--output',
                    dest='output',
                    action='store',
-                   default='index.html')
+                   default='index.html',
+                   help='Path to write the generated HTML file to.'
+                        ' The JSON and sqlite files will also be written'
+                        ' to the dirname of this file')
 
     prs.add_option('--expire-after',
                    dest='expire_after',
                    action='store',
-                   default=None)
+                   default=None,
+                   help="Expire posts older than e.g. 1d or 1h")
     prs.add_option('--expire-newerthan',
                    dest='expire_newerthan',
                    action='store',
-                   default=None)
+                   default=None,
+                   help="Expire posts newer than e.g. 14d."
+                   " HN does not allow edits after 14d.")
 
+    prs.add_option('-h', '--help',
+                   action='store_true')
     prs.add_option('-v', '--verbose',
                    dest='verbose',
                    action='store_true',)
@@ -452,7 +477,7 @@ def main(argv=None):
                    dest='run_tests',
                    action='store_true',)
 
-    argv = list(argv) if argv else []
+    argv = list(argv) if argv is not None else sys.argv[1:]
     log.debug('argv: %r', argv)
     (opts, args) = prs.parse_args(args=argv)
     loglevel = logging.INFO
@@ -467,6 +492,14 @@ def main(argv=None):
     if opts.run_tests:
         sys.argv = [sys.argv[0]] + args
         return unittest.main()
+
+    if opts.help:
+        prs.print_help()
+        return 0
+
+    if opts.username is None:
+        prs.print_help()
+        prs.error('-u/--username must be specified')
 
     def parse_timedeltastr(str_, default_days=14):
         if str_ is None:
@@ -485,7 +518,9 @@ def main(argv=None):
 
     expire_after = parse_timedeltastr(opts.expire_after)
     expire_newerthan = parse_timedeltastr(opts.expire_newerthan)
-    build_requests_session(expire_after=expire_after,
+    basedir = os.path.dirname(opts.output)
+    build_requests_session(basedir,
+                           expire_after=expire_after,
                            expire_newerthan=expire_newerthan,
                            always_set=True)
 
