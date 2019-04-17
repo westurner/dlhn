@@ -14,9 +14,9 @@ dlhn
 ..        :alt: Documentation Status
 
 
-.. image:: https://pyup.io/repos/github/westurner/dlhn/shield.svg
-     :target: https://pyup.io/repos/github/westurner/dlhn/
-     :alt: Updates
+.. .. image:: https://pyup.io/repos/github/westurner/dlhn/shield.svg
+..     :target: https://pyup.io/repos/github/westurner/dlhn/
+..     :alt: Updates
 
 
 
