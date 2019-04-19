@@ -478,7 +478,6 @@ def main(argv=None):
                    action='store_true',)
 
     argv = list(argv) if argv is not None else sys.argv[1:]
-    log.debug('argv: %r', argv)
     (opts, args) = prs.parse_args(args=argv)
     loglevel = logging.INFO
     if opts.verbose:
@@ -486,6 +485,7 @@ def main(argv=None):
     elif opts.quiet:
         loglevel = logging.ERROR
     logging.basicConfig(level=loglevel)
+    log.debug('argv: %r', argv)
     log.debug('opts: %r', opts)
     log.debug('args: %r', args)
 
