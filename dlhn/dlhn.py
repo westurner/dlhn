@@ -20,6 +20,8 @@ import os
 import sys
 import time
 
+from functools import partial
+
 if sys.version_info.major < 3:
     from HTMLParser import HTMLParser
     HTML_PARSER = HTMLParser()
@@ -112,7 +114,9 @@ def build_requests_session(basedir,
         log.error('The REQUESTS global is already set.')
 
 
-def dlhn(username, output='index.html'):
+def dlhn(username, output='index.html',
+        inputjson=None,
+        inputjson_upgrade=True):
     """pull hacker news comments
 
     Arguments:
@@ -120,6 +124,10 @@ def dlhn(username, output='index.html'):
 
     Keyword Arguments:
         output (str): path to write output to
+        inputjson (str): path to read local data
+            from instead of remote fetching (e.g. index.html.json)
+        inputjson_upgrade (bool): True to modify the input JSON data
+            before writing the template and json (default: True)
 
     Returns:
         str: HTML output
@@ -130,9 +138,15 @@ def dlhn(username, output='index.html'):
     build_requests_session(os.path.dirname(output))
 
     output_json = '%s.json' % output
+    datasource = inputjson if inputjson else 'HN API'
     log.info(
-        "Pulling hacker news for user %r into %r and %r",
-        username, output, output_json)
+        "Reading data from %r%s into %r%s and then templating to %r",
+        datasource,
+        ((' for user %r' % username) if username else ''),
+        output_json,
+        (', upgrading the JSON,' if inputjson_upgrade and inputjson else ''),
+        output)
+
 
     cache = None
     if os.path.exists(output_json):
@@ -144,14 +158,58 @@ def dlhn(username, output='index.html'):
             log.info(u'Reading cache from %r (%d)' %
                      (output_json, len(cache)))
 
-    items, roots = get_items(username, cache=cache)
-    data = collections.OrderedDict()
-    data['usernames'] = [username]
-    data['items'] = items
-    data['roots'] = roots
-    html = TEMPLATE.render(**data)
-    with codecs.open(output_json, 'w', encoding='utf8') as _file:
-        json.dump(data, _file, indent=2)
+    if inputjson is None:
+        items, roots = get_items(username, cache=cache)
+        data = collections.OrderedDict()
+        data['usernames'] = [username]
+        data['items'] = items
+        data['roots'] = roots
+    else:
+        log.info("Loading JSON from %r" % inputjson)
+        with open(inputjson, 'r') as _inputjsonfile:
+            data = json.load(_inputjsonfile,
+                    object_pairs_hook=collections.OrderedDict)
+
+        required_attrs = ('usernames', 'items', 'roots')
+        missing_attrs = []
+        for attr in required_attrs:
+            if attr not in data:
+                missing_attrs.append(attr)
+        if missing_attrs:
+            raise ValueError(
+                'inputjson does not have attrs: %r' % missing_attrs)
+
+        if inputjson_upgrade:
+            log.info("Upgrading JSON from %r" % inputjson)
+            for itemid, item in data['items'].items():
+                # item = data['items'].get(str(itemid))
+                if item is None:
+                    log.error('itemid %r is not in data["items"]'
+                            % itemid)
+                else:
+                    if item.get('type') == 'comment':
+                        if 'text' not in item:
+                            if item.get('deleted') != True:
+                                log.error(
+                                    ('itemid %r does not have a "text" attr'
+                                        % itemid, item))
+                        else:
+                            try:
+                                # log.debug(('upgrading item', item))
+                                item['text'] = CLEANER.clean(item['text'])
+                            except ValueError as e:
+                                log.exception(e)
+                                log.error(('item[text]', item['text']))
+
+    if inputjson is None or inputjson_upgrade is True:
+        log.info("Writing JSON to %r" % output_json)
+        with codecs.open(output_json, 'w', encoding='utf8') as _file:
+            json.dump(data, _file, indent=2)
+
+    log.info("Generating HTML with template")
+    html = TEMPLATE.render(str=str, **data)
+
+    log.info("Writing HTML to %r" % output)
     with codecs.open(output, 'w', encoding='utf8') as _file:
         _file.write(html)
     return html
@@ -163,11 +221,24 @@ ALLOWED_ATTRIBUTES = bleach.sanitizer.ALLOWED_ATTRIBUTES.copy()
 ALLOWED_ATTRIBUTES['a'].append('rel')
 
 
-def cleanup_html(html):
-    return bleach.clean(
-        unescape(html),
+def set_link_attrs(attrs, new=False):
+    attrs[(None, 'target')] = '_blank'
+    attrs[(None, 'rel')] = 'nofollow noopener'
+    return attrs
+
+
+LINKIFYFILTER = partial(
+        bleach.linkifier.LinkifyFilter,
+        callbacks=[set_link_attrs])
+CLEANER = bleach.sanitizer.Cleaner(
+        filters=[LINKIFYFILTER],
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES)
+
+
+def cleanup_html(html):
+    _html = unescape(html)
+    return CLEANER.clean(_html)
 
 
 def get_items(username, cache=None):
@@ -341,7 +412,7 @@ TEMPLATE = jinja2.Template("""
     </thead>
     <tbody>
     {% for itemid in roots[:] %}
-    {% set item=items.get(itemid) -%}
+    {% set item=items.get(str(itemid)) -%}
     {% set itemcssid="{}-{}".format(item.type, item.id) -%}
     {% set fromme=(item.by in usernames) -%}
     <tr scope="row" {% if fromme %} class="bold"{% endif %}>
@@ -356,7 +427,7 @@ TEMPLATE = jinja2.Template("""
 
   <h3><a id="items" href="#items">Items</a><a href="#" class="toplink">^</a></h3>
   {% for itemid in roots recursive -%}
-  {% set item=items.get(itemid) -%}
+  {% set item=items.get(str(itemid)) -%}
   {% if item != None -%}
   {% set itemcssid="{}-{}".format(item.type, item.id) -%}
   {% set fromme=(item.by in usernames) -%}
@@ -370,15 +441,15 @@ TEMPLATE = jinja2.Template("""
           {%- if item.title -%}<a href="#{{ itemcssid }}">{{ item.title }}</a>{% endif -%}
         </h4>
         <div class="card-subtitle text-muted">
-          <a href="https://news.ycombinator.com/user?id={{ item.by }}">{{ item.by }}</a> |
-          <a href="https://news.ycombinator.com/item?id={{ item.id }}"
+          <a href="https://news.ycombinator.com/user?id={{ item.by }}" target="_blank" rel="nofollow noopener">{{ item.by }}</a> |
+          <a href="https://news.ycombinator.com/item?id={{ item.id }}" target="_blank" rel="nofollow noopener"
           {% if not item.title %}id="{{ itemcssid }}"{% endif %}
           >{{ item.time_iso }}</a>
           {%- if item.score %} | {{ item.score }} {% endif %} | <a href="#{{ itemcssid }}">#</a> | <a href="#" class="toplink">^</a>
         </div>
         {% if item.url -%}
         <div class="card-subtitle text-muted">
-            <span><a href="{{ item.url }}" rel="nofollow">{{ item.url }}</a></span>
+            <span><a href="{{ item.url }}" target="_blank" rel="nofollow noopener">{{ item.url }}</a></span>
         </div>
         {% endif -%}
         {%- if item.text %}
@@ -453,6 +524,14 @@ def main(argv=None):
                         ' The JSON and sqlite files will also be written'
                         ' to the dirname of this file')
 
+    prs.add_option('-i', '--input',
+                    dest='inputjson',
+                    action='store',
+                    help=(
+                        'Path to an existing JSON file to read data from'
+                        ' and template'
+                        ' *instead of* making remote API requests'))
+
     prs.add_option('--expire-after',
                    dest='expire_after',
                    action='store',
@@ -497,7 +576,7 @@ def main(argv=None):
         prs.print_help()
         return 0
 
-    if opts.username is None:
+    if opts.username is None and opts.inputjson is None:
         prs.print_help()
         prs.error('-u/--username must be specified')
 
@@ -525,7 +604,10 @@ def main(argv=None):
                            always_set=True)
 
     EX_OK = 0
-    output = dlhn(opts.username, output=opts.output)
+    output = dlhn(
+        opts.username,
+        output=opts.output,
+        inputjson=opts.inputjson)
     return EX_OK
 
 
