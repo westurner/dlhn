@@ -206,6 +206,12 @@ def dlhn(username, output='index.html',
         with codecs.open(output_json, 'w', encoding='utf8') as _file:
             json.dump(data, _file, indent=2)
 
+    # read JSON from disk
+    log.info("Loading JSON from %r" % inputjson)
+    with open(output_json, 'r') as _outputjsonfile:
+        data = json.load(_outputjsonfile,
+                object_pairs_hook=collections.OrderedDict)
+
     log.info("Generating HTML with template")
     html = TEMPLATE.render(str=str, **data)
 
