@@ -62,11 +62,8 @@ def remove_new_entries(self, created_after):
     """
     keys_to_delete = set()
     for key in self.responses:
-        try:
-            response, created_at = self.responses[key]
-        except KeyError:
-            continue
-        if created_at > created_after:
+        response = self.responses.get(key)
+        if response and response.created_at > created_after:
             keys_to_delete.add(key)
 
     for key in keys_to_delete:
@@ -221,7 +218,7 @@ def dlhn(username, output='index.html',
     return html
 
 
-ALLOWED_TAGS = bleach.sanitizer.ALLOWED_TAGS[:]
+ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS)
 ALLOWED_TAGS.extend(['p', 'pre'])
 ALLOWED_ATTRIBUTES = bleach.sanitizer.ALLOWED_ATTRIBUTES.copy()
 ALLOWED_ATTRIBUTES['a'].append('rel')
