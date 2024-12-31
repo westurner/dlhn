@@ -6,8 +6,8 @@ dlhn
 .. image:: https://img.shields.io/pypi/v/dlhn.svg
         :target: https://pypi.python.org/pypi/dlhn
 
-.. image:: https://img.shields.io/travis/westurner/dlhn.svg
-        :target: https://travis-ci.org/westurner/dlhn
+.. .. image:: https://img.shields.io/travis/westurner/dlhn.svg
+..        :target: https://travis-ci.org/westurner/dlhn
 
 .. .. image:: https://readthedocs.org/projects/dlhn/badge/?version=latest
 ..        :target: https://dlhn.readthedocs.io/en/latest/?badge=latest
