@@ -20,9 +20,10 @@ dlhn
 
 
 
-dlhn is a Python CLI script to download my comments and submissions
+dlhn is a Python CLI script to archive my comments and submissions
 from the Hacker News API
-and generate a static HTML archive with a Jinja2 template
+and generate a static HTML archive with a Jinja2 template;
+to create a one-page archive that's `Ctrl-F`-able.
 
 
 Features
@@ -46,12 +47,14 @@ Install dlhn with pip:
     pip install dlhn
 
     # pip install -e git+https://github.com/westurner/dlhn#egg=dlhn
+    # pip install -e git+https://github.com/westurner/dlhn@master#egg=dlhn
+    # pip install -e git+https://github.com/westurner/dlhn@v0.2.6#egg=dlhn
 
 
 Usage
 ------
 
-Call dlhn:
+Download HN comments and submissions with:
 
 .. code:: bash
 
@@ -87,7 +90,7 @@ Optionally, create a repo for e.g. GitHub Pages and add a ``Makefile``:
 
     all: backup commit push
 
-And pass USERNAME as an arg when calling ``make``:
+And pass `USERNAME` as an arg when calling ``make``:
 
 .. code:: bash
 
@@ -107,9 +110,6 @@ License
 --------
 BSD License
 
-dlhn archives pubicly available comments and submissions
-from the Hacker News API
-for noncommercial use to make searching one-page with 'Ctrl-F' easy.
 
 Credits
 -------
