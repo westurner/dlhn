@@ -316,6 +316,7 @@ TEMPLATE = jinja2.Template("""
   <style>
       a {
           text-decoration: underline;
+          color: #024a8a;
       }
       a.toplink {
           text-decoration: none;
@@ -325,11 +326,15 @@ TEMPLATE = jinja2.Template("""
       h3 a.toplink {
           padding: 0.4em;
       }
-      /* body {
-          background: #c0c0c0;
-      } */
+      body {
+          /* background: #c0c0c0; */
+          /* background: #d6d0c2; */
+          background: #f4eedf;
+          background-color: #d6d0c2;
+      }
       .card {
-          background-color: #f6f6ef;
+          /* background-color: #f6f6ef; */
+          background-color: #d6d0c2;
           padding: 0.2em 1em; /* */
           margin: 0.2em;
       }
@@ -357,6 +362,15 @@ TEMPLATE = jinja2.Template("""
           margin-bottom: -6px;
       }
 
+      .table thead th {
+          vertical-align: bottom;
+          border-bottom: 2px solid #7f7c7f;
+      }
+
+      .table td, .table th {
+          border-top: 1px solid #aea6a6b5;
+      }
+
       @media (max-width: 767px) {
           a.collapser {
               float: none;
@@ -367,6 +381,21 @@ TEMPLATE = jinja2.Template("""
               padding: 0 4px;
           }
       }
+
+      html[data-darkreader-scheme="dark"] body,
+      html[data-darkreader-scheme="dark"] .card {
+          background-color: #000000 !important;
+          color: #d4aeae !important;
+      }
+
+      html[data-darkreader-scheme="dark"] .card-subtitle a {
+          color: #776c58 !important;
+      }
+
+      html[data-darkreader-scheme="dark"] a.collapser {
+          color: #655 !important;
+      }
+
   </style>
   <script>
       function toggleDownward(elem) {
@@ -385,7 +414,7 @@ TEMPLATE = jinja2.Template("""
   </script>
 </head>
 <body>
-  <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4" role="navigation">
+  <nav class="navbar navbar-expand mb-4" role="navigation">
     <a class="navbar-brand" href="#">hnlog</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
